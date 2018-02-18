@@ -98,6 +98,9 @@ int main() {
           * Both are in between [-1, 1].
           *
           */
+	  // latency
+	// https://discussions.udacity.com/t/how-to-incorporate-latency-into-the-model/257391/78
+//	https://discussions.udacity.com/t/how-to-incorporate-latency-into-the-model/257391/63?u=acherep
           double steer_value;
           double throttle_value;
 
