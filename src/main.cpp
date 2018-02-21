@@ -84,6 +84,30 @@ int main() {
         auto j = json::parse(s);
         string event = j[0].get<string>();
         if (event == "telemetry") {
+        Fields:
+
+          /* `ptsx` (Array<float>) - The global x positions of the waypoints.
+           * `ptsy` (Array<float>) - The global y positions of the waypoints.
+           * This corresponds to the z coordinate in Unity since
+           * y is the up-down direction.
+           *
+           * `psi` (float) - The orientation of the vehicle
+           * in radians converted from the Unity format to the standard
+           * format expected in most mathemetical functions (more details
+           * below).
+           *
+           * `psi_unity` (float) - The orientation of the vehicle in
+           * radians. This is an orientation commonly used in navigation
+           * (https://en.wikipedia.org/wiki/Polar_coordinate_system#Position_and_navigation).
+           *
+           * `x` (float) - The global x position of the vehicle.
+           * `y` (float) - The global y position of the vehicle.
+           *
+           * `steering_angle` (float) - The current steering angle in radians.
+           * `throttle` (float) - The current throttle value [-1, 1].
+           * `speed` (float) - The current velocity in mph.
+           */
+
           // j[1] is the data JSON object
           vector<double> ptsx = j[1]["ptsx"];
           vector<double> ptsy = j[1]["ptsy"];
@@ -91,6 +115,10 @@ int main() {
           double py = j[1]["y"];
           double psi = j[1]["psi"];
           double v = j[1]["speed"];
+
+          for (int i = 0; i < ptsx.size(); ++i) {
+            std::cout << ptsx[i] << " " << ptsy[i] << std::endl;
+          }
 
           /*
            * TODO: Calculate steering angle and throttle using MPC.
@@ -101,8 +129,8 @@ int main() {
           // latency
           // https://discussions.udacity.com/t/how-to-incorporate-latency-into-the-model/257391/78
           //	https://discussions.udacity.com/t/how-to-incorporate-latency-into-the-model/257391/63?u=acherep
-          double steer_value;
-          double throttle_value;
+          double steer_value = 0;
+          double throttle_value = 0.1;
 
           json msgJson;
           // NOTE: Remember to divide by deg2rad(25) before you send the
