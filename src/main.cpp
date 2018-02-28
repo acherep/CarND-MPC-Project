@@ -84,14 +84,18 @@ int main() {
         auto j = json::parse(s);
         string event = j[0].get<string>();
         if (event == "telemetry") {
-
           // j[1] is the data JSON object
-          
+
           // `ptsx` (Array<float>) - The global x positions of the waypoints.
-          vector<double> ptsx = j[1]["ptsx"];
-          
+          vector<double> ptsx1 = j[1]["ptsx"];
+          double *ptsx_ref = &ptsx1[0];
+
+          Eigen::Map<Eigen::VectorXd> ptsx(ptsx_ref, ptsx1.size());
+
           // `ptsy` (Array<float>) - The global y positions of the waypoints.
-          vector<double> ptsy = j[1]["ptsy"];
+          vector<double> ptsy1 = j[1]["ptsy"];
+          double *ptsy_ref = &ptsy1[0];
+          Eigen::Map<Eigen::VectorXd> ptsy(ptsy_ref, ptsy1.size());
           // This corresponds to the z coordinate in Unity since
           //  y is the up-down direction.
 
@@ -99,7 +103,7 @@ int main() {
           double px = j[1]["x"];
           // `y` (float) - The global y position of the vehicle.
           double py = j[1]["y"];
-          
+
           // `psi` (float) - The orientation of the vehicle
           //  in radians converted from the Unity format to the standard
           //  format expected in most mathemetical functions (more details
@@ -108,12 +112,13 @@ int main() {
           //  radians. This is an orientation commonly used in navigation
           //  (https://en.wikipedia.org/wiki/Polar_coordinate_system#Position_and_navigation).
           double psi = j[1]["psi"];
-          
+
           // `speed` (float) - The current velocity in mph.
           double v = j[1]["speed"];
 
           // `steering_angle` (float) - The current steering angle in radians.
           //  `throttle` (float) - The current throttle value [-1, 1].
+          auto coeffs = polyfit(ptsx, ptsy, 3);
 
           for (unsigned int i = 0; i < ptsx.size(); ++i) {
             std::cout << ptsx[i] - px << " " << ptsy[i] - py << std::endl;
