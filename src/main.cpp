@@ -77,7 +77,7 @@ int main() {
     // The 4 signifies a websocket message
     // The 2 signifies a websocket event
     string sdata = string(data).substr(0, length);
-    cout << sdata << endl;
+    // cout << sdata << endl;
     if (sdata.size() > 2 && sdata[0] == '4' && sdata[1] == '2') {
       string s = hasData(sdata);
       if (s != "") {
@@ -87,15 +87,13 @@ int main() {
           // j[1] is the data JSON object
 
           // `ptsx` (Array<float>) - The global x positions of the waypoints.
-          vector<double> ptsx1 = j[1]["ptsx"];
-          double *ptsx_ref = &ptsx1[0];
-
-          Eigen::Map<Eigen::VectorXd> ptsx(ptsx_ref, ptsx1.size());
+          vector<double> ptsx = j[1]["ptsx"];
+          Eigen::VectorXd car_ptsx = Eigen::VectorXd::Zero(ptsx.size());
 
           // `ptsy` (Array<float>) - The global y positions of the waypoints.
-          vector<double> ptsy1 = j[1]["ptsy"];
-          double *ptsy_ref = &ptsy1[0];
-          Eigen::Map<Eigen::VectorXd> ptsy(ptsy_ref, ptsy1.size());
+          vector<double> ptsy = j[1]["ptsy"];
+          Eigen::VectorXd car_ptsy = Eigen::VectorXd::Zero(ptsy.size());
+
           // This corresponds to the z coordinate in Unity since
           //  y is the up-down direction.
 
@@ -118,11 +116,21 @@ int main() {
 
           // `steering_angle` (float) - The current steering angle in radians.
           //  `throttle` (float) - The current throttle value [-1, 1].
-          auto coeffs = polyfit(ptsx, ptsy, 3);
 
           for (unsigned int i = 0; i < ptsx.size(); ++i) {
-            std::cout << ptsx[i] - px << " " << ptsy[i] - py << std::endl;
+            // transformation of global (x,y) position into the car's space
+            double x = ptsx[i] - px;
+            double y = ptsy[i] - py;
+            car_ptsx[i] = x * cos(-psi) - y * sin(-psi);
+            car_ptsy[i] = x * sin(-psi) + y * cos(-psi);
+            std::cout << car_ptsx[i] << " " << car_ptsy[i] << std::endl;
           }
+
+          auto coeffs = polyfit(car_ptsx, car_ptsy, 3);
+          for (unsigned int i = 0; i < coeffs.size(); ++i) {
+            std::cout << coeffs[i];
+          }
+          std::cout << std::endl;
 
           /*
            * TODO: Calculate steering angle and throttle using MPC.
@@ -132,7 +140,7 @@ int main() {
            */
           // latency
           // https://discussions.udacity.com/t/how-to-incorporate-latency-into-the-model/257391/78
-          //	https://discussions.udacity.com/t/how-to-incorporate-latency-into-the-model/257391/63?u=acherep
+          // https://discussions.udacity.com/t/how-to-incorporate-l2atency-into-the-model/257391/63?u=acherep
           double steer_value = 0;
           double throttle_value = 0.1;
 
