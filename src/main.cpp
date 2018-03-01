@@ -128,9 +128,29 @@ int main() {
 
           auto coeffs = polyfit(car_ptsx, car_ptsy, 3);
           for (unsigned int i = 0; i < coeffs.size(); ++i) {
-            std::cout << coeffs[i];
+            std::cout << coeffs[i] << " ";
           }
           std::cout << std::endl;
+
+          // The cross track error is calculated by evaluating at polynomial at
+          // x, f(x)
+          // and subtracting y.
+          double cte = polyeval(coeffs, 0) - 0;
+          cout << "cte: " << cte << endl;
+          // Due to the sign starting at 0, the orientation error is -f'(x).
+          // derivative of coeffs[0] + coeffs[1] * x -> coeffs[1]
+          // coeffs[0] + coeffs[1] * x + coeffs[2] * x^2 + coeffs[3] * x^3 ->
+          // coeffs[1]
+          double epsi = 0 - atan(coeffs[1]);
+          cout << "epsi: " << epsi << " " << 0 << " " << atan(coeffs[1])
+               << endl;
+
+          Eigen::VectorXd state(6);
+          state << 0, 0, psi, v, cte, epsi;
+
+          auto vars = mpc.Solve(state, coeffs);
+
+          cout << "Vars: " << vars[0] << " " << vars[1] << endl;
 
           /*
            * TODO: Calculate steering angle and throttle using MPC.
@@ -141,8 +161,11 @@ int main() {
           // latency
           // https://discussions.udacity.com/t/how-to-incorporate-latency-into-the-model/257391/78
           // https://discussions.udacity.com/t/how-to-incorporate-l2atency-into-the-model/257391/63?u=acherep
-          double steer_value = 0;
-          double throttle_value = 0.1;
+          double steer_value = vars[0] / deg2rad(25);
+          double throttle_value = vars[1];
+
+          // double steer_value = 0.;
+          // double throttle_value = 0.1;
 
           json msgJson;
           // NOTE: Remember to divide by deg2rad(25) before you send the
@@ -154,18 +177,19 @@ int main() {
           // Display the MPC predicted trajectory
           vector<double> mpc_x_vals;
           vector<double> mpc_y_vals;
-
           //.. add (x,y) points to list here, points are in reference to the
           // vehicle's coordinate system
           // the points in the simulator are connected by a Green line
-
           msgJson["mpc_x"] = mpc_x_vals;
           msgJson["mpc_y"] = mpc_y_vals;
 
           // Display the waypoints/reference line
           vector<double> next_x_vals;
           vector<double> next_y_vals;
-
+          for (unsigned i = 0; i < car_ptsx.size(); ++i) {
+            next_x_vals.push_back(car_ptsx[i]);
+            next_y_vals.push_back(car_ptsy[i]);
+          }
           //.. add (x,y) points to list here, points are in reference to the
           // vehicle's coordinate system
           // the points in the simulator are connected by a Yellow line
