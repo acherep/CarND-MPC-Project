@@ -5,8 +5,8 @@
 
 using CppAD::AD;
 
-size_t N = 25;
-double dt = 0.05;
+size_t N = 10;
+double dt = 0.1;
 
 // This value assumes the model presented in the classroom is used.
 //
@@ -22,7 +22,9 @@ const double Lf = 2.67;
 
 // Both the reference cross track and orientation errors are 0.
 // The reference velocity is set to 40 mph.
-double ref_v = 10;
+double ref_v = 100;
+double ref_cte = 0;
+double ref_epsi = 0;
 
 // The solver takes all the state variables and actuator
 // variables in a singular vector. Thus, we should to establish
@@ -55,20 +57,22 @@ class FG_eval {
 
     // The part of the cost based on the reference state.
     for (size_t t = 0; t < N; t++) {
-      fg[0] += CppAD::pow(vars[cte_start + t], 2);
-      fg[0] += CppAD::pow(vars[epsi_start + t], 2);
+      fg[0] += 750 * CppAD::pow(vars[cte_start + t] - ref_cte, 2);
+      fg[0] += 400 * CppAD::pow(vars[epsi_start + t] - ref_epsi, 2);
       fg[0] += CppAD::pow(vars[v_start + t] - ref_v, 2);
     }
 
     // Minimize the use of actuators.
     for (size_t t = 0; t < N - 1; t++) {
       fg[0] += CppAD::pow(vars[delta_start + t], 2);
-      fg[0] += CppAD::pow(vars[a_start + t], 2);
+      fg[0] += 2 * CppAD::pow(vars[a_start + t], 2);
+      fg[0] += 175 * CppAD::pow(vars[delta_start + t] * vars[v_start + t], 2);
     }
 
     // Minimize the value gap between sequential actuations.
     for (size_t t = 0; t < N - 2; t++) {
-      fg[0] += CppAD::pow(vars[delta_start + t + 1] - vars[delta_start + t], 2);
+      fg[0] +=
+          11 * CppAD::pow(vars[delta_start + t + 1] - vars[delta_start + t], 2);
       fg[0] += CppAD::pow(vars[a_start + t + 1] - vars[a_start + t], 2);
     }
 
@@ -108,8 +112,10 @@ class FG_eval {
       AD<double> delta0 = vars[delta_start + t - 1];
       AD<double> a0 = vars[a_start + t - 1];
 
-      AD<double> f0 = coeffs[0] + coeffs[1] * x0;
-      AD<double> psides0 = CppAD::atan(coeffs[1]);
+      AD<double> f0 = coeffs[0] + coeffs[1] * x0 + coeffs[2] * pow(x0, 2) +
+                      coeffs[3] * pow(x0, 3);
+      AD<double> psides0 = CppAD::atan(coeffs[1] + 2 * coeffs[2] * x0 +
+                                       3 * coeffs[3] * pow(x0, 2));
 
       // Here's `x` to get you started.
       // The idea here is to constraint this value to be 0.
@@ -118,6 +124,9 @@ class FG_eval {
       // x_[t+1] = x[t] + v[t] * cos(psi[t]) * dt
       // y_[t+1] = y[t] + v[t] * sin(psi[t]) * dt
       // psi_[t+1] = psi[t] + v[t] / Lf * delta[t] * dt
+      // delta - a positive value implies a right turn and a negative value
+      // implies a left turn, the sign when sent to the simulator has to be
+      // inverted
       // v_[t+1] = v[t] + a[t] * dt
       // cte[t+1] = f(x[t]) - y[t] + v[t] * sin(epsi[t]) * dt
       // epsi[t+1] = psi[t] - psides[t] + v[t] * delta[t] / Lf * dt
@@ -127,8 +136,7 @@ class FG_eval {
       fg[1 + v_start + t] = v1 - (v0 + a0 * dt);
       fg[1 + cte_start + t] =
           cte1 - ((f0 - y0) + (v0 * CppAD::sin(epsi0) * dt));
-      fg[1 + epsi_start + t] =
-          epsi1 - ((psi0 - psides0) + v0 * delta0 / Lf * dt);
+      fg[1 + epsi_start + t] = epsi1 - (psi0 - psides0 + v0 * delta0 / Lf * dt);
     }
   }
 };
@@ -262,11 +270,22 @@ vector<double> MPC::Solve(Eigen::VectorXd state, Eigen::VectorXd coeffs) {
   auto cost = solution.obj_value;
   std::cout << "Cost " << cost << std::endl;
 
+  vector<double> output;
+
+  output = {solution.x[delta_start], solution.x[a_start]};
+
+  for (size_t t = 1; t < N; t++) {
+    output.push_back(solution.x[x_start + t]);  // x coordinate
+    output.push_back(solution.x[y_start + t]);  // y coordinate
+  }
+
+  return output;
+
   // TODO: Return the first actuator values. The variables can be accessed
   // with `solution.x[i]`.
   //
   // {...} is shorthand for creating a vector, so auto x1 = {1.0,2.0}
   // creates a 2 element double vector.
-  auto x1 = {solution.x[delta_start], solution.x[a_start]};
-  return x1;
+  // auto x1 = {solution.x[delta_start], solution.x[a_start]};
+  // return x1;
 }

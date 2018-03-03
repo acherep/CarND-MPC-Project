@@ -115,7 +115,9 @@ int main() {
           double v = j[1]["speed"];
 
           // `steering_angle` (float) - The current steering angle in radians.
+          double steering_angle = j[1]["steering_angle"];
           //  `throttle` (float) - The current throttle value [-1, 1].
+          double throttle = j[1]["throttle"];
 
           for (unsigned int i = 0; i < ptsx.size(); ++i) {
             // transformation of global (x,y) position into the car's space
@@ -123,30 +125,44 @@ int main() {
             double y = ptsy[i] - py;
             car_ptsx[i] = x * cos(-psi) - y * sin(-psi);
             car_ptsy[i] = x * sin(-psi) + y * cos(-psi);
-            std::cout << car_ptsx[i] << " " << car_ptsy[i] << std::endl;
+            // std::cout << car_ptsx[i] << " " << car_ptsy[i] << std::endl;
           }
 
           auto coeffs = polyfit(car_ptsx, car_ptsy, 3);
-          for (unsigned int i = 0; i < coeffs.size(); ++i) {
-            std::cout << coeffs[i] << " ";
-          }
-          std::cout << std::endl;
+          // for (unsigned int i = 0; i < coeffs.size(); ++i) {
+          //   std::cout << coeffs[i] << " ";
+          // }
+          // std::cout << std::endl;
 
           // The cross track error is calculated by evaluating at polynomial at
           // x, f(x)
           // and subtracting y.
-          double cte = polyeval(coeffs, 0) - 0;
-          cout << "cte: " << cte << endl;
+          double cte = polyeval(coeffs, 0);
+          // cout << "cte: " << cte << endl;
           // Due to the sign starting at 0, the orientation error is -f'(x).
           // derivative of coeffs[0] + coeffs[1] * x -> coeffs[1]
           // coeffs[0] + coeffs[1] * x + coeffs[2] * x^2 + coeffs[3] * x^3 ->
-          // coeffs[1]
+          // coeffs[1] is the derivative
           double epsi = 0 - atan(coeffs[1]);
-          cout << "epsi: " << epsi << " " << 0 << " " << atan(coeffs[1])
-               << endl;
+          // cout << "epsi: " << epsi << endl;
+
+          double latency = 0.1;
+
+          const double Lf = 2.67;
+
+          // updated state variabales after latency is included
+          px = v * latency;
+          py = 0;
+          psi = -v * steering_angle * latency / Lf;
+          epsi += psi;
+          v += throttle * latency;
+          cte += v * latency * sin(epsi);
 
           Eigen::VectorXd state(6);
-          state << 0, 0, psi, v, cte, epsi;
+          // adding latency to the state vector convert
+          // state << 0, 0, 0, v, cte, epsi;
+          // into
+          state << px, py, psi, v, cte, epsi;
 
           auto vars = mpc.Solve(state, coeffs);
 
@@ -161,7 +177,12 @@ int main() {
           // latency
           // https://discussions.udacity.com/t/how-to-incorporate-latency-into-the-model/257391/78
           // https://discussions.udacity.com/t/how-to-incorporate-l2atency-into-the-model/257391/63?u=acherep
-          double steer_value = vars[0] / deg2rad(25);
+          // https://www.youtube.com/watch?v=bOQuhpz3YfU&index=5&t=1726s&list=PLAwxTw4SYaPnfR7TzRZN-uxlxGbqxhtm2
+
+          // for further optimization
+          // double steer_value = j[1]["steering_angle"];
+          // double throttle_value = j[1]["throttle"];
+          double steer_value = -vars[0] / deg2rad(25);
           double throttle_value = vars[1];
 
           // double steer_value = 0.;
@@ -183,7 +204,7 @@ int main() {
           msgJson["mpc_x"] = mpc_x_vals;
           msgJson["mpc_y"] = mpc_y_vals;
 
-          // Display the waypoints/reference line
+          // Display the waypoints/reference line the car has to follow
           vector<double> next_x_vals;
           vector<double> next_y_vals;
           for (unsigned i = 0; i < car_ptsx.size(); ++i) {
@@ -198,7 +219,7 @@ int main() {
           msgJson["next_y"] = next_y_vals;
 
           auto msg = "42[\"steer\"," + msgJson.dump() + "]";
-          std::cout << msg << std::endl;
+          // std::cout << msg << std::endl;
           // Latency
           // The purpose is to mimic real driving conditions where
           // the car does actuate the commands instantly.
