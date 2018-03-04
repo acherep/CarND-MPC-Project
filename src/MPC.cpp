@@ -4,7 +4,10 @@
 #include "Eigen-3.3/Eigen/Core"
 
 using CppAD::AD;
-
+// N determines how many points are evaluated
+// dt determines the time interval between points
+// with values N = 10 and dt = 0.1, the solver tries to find an optimal path for
+// the next 1 second of driving
 size_t N = 10;
 double dt = 0.1;
 
@@ -21,7 +24,7 @@ double dt = 0.1;
 const double Lf = 2.67;
 
 // Both the reference cross track and orientation errors are 0.
-// The reference velocity is set to 40 mph.
+// The reference velocity is set to 100 mph.
 double ref_v = 100;
 double ref_cte = 0;
 double ref_epsi = 0;
@@ -92,7 +95,7 @@ class FG_eval {
 
     // The rest of the constraints
     for (size_t t = 1; t < N; t++) {
-      // The state at time t+1 .
+      // The state at time t+1
       AD<double> x1 = vars[x_start + t];
       AD<double> y1 = vars[y_start + t];
       AD<double> psi1 = vars[psi_start + t];
@@ -100,7 +103,7 @@ class FG_eval {
       AD<double> cte1 = vars[cte_start + t];
       AD<double> epsi1 = vars[epsi_start + t];
 
-      // The state at time t.
+      // The state at time t
       AD<double> x0 = vars[x_start + t - 1];
       AD<double> y0 = vars[y_start + t - 1];
       AD<double> psi0 = vars[psi_start + t - 1];
@@ -108,7 +111,7 @@ class FG_eval {
       AD<double> cte0 = vars[cte_start + t - 1];
       AD<double> epsi0 = vars[epsi_start + t - 1];
 
-      // Only consider the actuation at time t.
+      // Only consider the actuation at time t
       AD<double> delta0 = vars[delta_start + t - 1];
       AD<double> a0 = vars[a_start + t - 1];
 
@@ -149,7 +152,6 @@ MPC::~MPC() {}
 
 vector<double> MPC::Solve(Eigen::VectorXd state, Eigen::VectorXd coeffs) {
   bool ok = true;
-  // size_t i;
   typedef CPPAD_TESTVECTOR(double) Dvector;
 
   double x = state[0];
@@ -159,7 +161,7 @@ vector<double> MPC::Solve(Eigen::VectorXd state, Eigen::VectorXd coeffs) {
   double cte = state[4];
   double epsi = state[5];
 
-  // TODO: Set the number of model variables (includes both states and
+  // We set the number of model variables (includes both states and
   // inputs). For example: If the state is a 4 element vector, the actuators
   // is a 2 element vector and there are 10 timesteps. The number of variables
   // is: 4 * 10 + 2 * 9
@@ -237,9 +239,6 @@ vector<double> MPC::Solve(Eigen::VectorXd state, Eigen::VectorXd coeffs) {
   // object that computes objective and constraints
   FG_eval fg_eval(coeffs);
 
-  //
-  // NOTE: You don't have to worry about these options
-  //
   // options for IPOPT solver
   std::string options;
   // Uncomment this if you'd like more print information
@@ -268,24 +267,19 @@ vector<double> MPC::Solve(Eigen::VectorXd state, Eigen::VectorXd coeffs) {
 
   // Cost
   auto cost = solution.obj_value;
-  std::cout << "Cost " << cost << std::endl;
+  std::cout << "Cost: " << cost << std::endl;
 
   vector<double> output;
-
+  // Returns the first actuator values for optimal steering angle and throttle
   output = {solution.x[delta_start], solution.x[a_start]};
+  std::cout << "Steering angle: " << output[0] << ", throttle: " << output[1]
+            << std::endl;
 
+  // points of predicted trajectory
   for (size_t t = 1; t < N; t++) {
     output.push_back(solution.x[x_start + t]);  // x coordinate
     output.push_back(solution.x[y_start + t]);  // y coordinate
   }
 
   return output;
-
-  // TODO: Return the first actuator values. The variables can be accessed
-  // with `solution.x[i]`.
-  //
-  // {...} is shorthand for creating a vector, so auto x1 = {1.0,2.0}
-  // creates a 2 element double vector.
-  // auto x1 = {solution.x[delta_start], solution.x[a_start]};
-  // return x1;
 }
