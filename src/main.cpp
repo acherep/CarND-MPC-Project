@@ -87,15 +87,11 @@ int main() {
           // j[1] is the data JSON object
 
           // `ptsx` (Array<float>) - The global x positions of the waypoints.
-          vector<double> ptsx = j[1]["ptsx"];
-          Eigen::VectorXd car_ptsx = Eigen::VectorXd::Zero(ptsx.size());
-
           // `ptsy` (Array<float>) - The global y positions of the waypoints.
-          vector<double> ptsy = j[1]["ptsy"];
-          Eigen::VectorXd car_ptsy = Eigen::VectorXd::Zero(ptsy.size());
-
           // This corresponds to the z coordinate in Unity since
           //  y is the up-down direction.
+          vector<double> ptsx = j[1]["ptsx"];
+          vector<double> ptsy = j[1]["ptsy"];
 
           // `x` (float) - The global x position of the vehicle.
           double px = j[1]["x"];
@@ -115,48 +111,52 @@ int main() {
           double v = j[1]["speed"];
 
           // `steering_angle` (float) - The current steering angle in radians.
-          double steering_angle = j[1]["steering_angle"];
+          double steering = j[1]["steering_angle"];
           //  `throttle` (float) - The current throttle value [-1, 1].
           double throttle = j[1]["throttle"];
 
+          // positions in the vehicle space
+          //  i.e. where the vehicle is located at the origin (0, 0)
+          //  and the orientation is 0/360 degrees
+          Eigen::VectorXd car_ptsx = Eigen::VectorXd::Zero(ptsx.size());
+          Eigen::VectorXd car_ptsy = Eigen::VectorXd::Zero(ptsy.size());
+
           for (unsigned int i = 0; i < ptsx.size(); ++i) {
-            // transformation of global (x,y) position into the car's space
+            // transformation of global (x,y) position into the vehicle space
             double x = ptsx[i] - px;
             double y = ptsy[i] - py;
             car_ptsx[i] = x * cos(-psi) - y * sin(-psi);
             car_ptsy[i] = x * sin(-psi) + y * cos(-psi);
-            // std::cout << car_ptsx[i] << " " << car_ptsy[i] << std::endl;
           }
 
           auto coeffs = polyfit(car_ptsx, car_ptsy, 3);
-          // for (unsigned int i = 0; i < coeffs.size(); ++i) {
-          //   std::cout << coeffs[i] << " ";
-          // }
-          // std::cout << std::endl;
 
           // The cross track error is calculated by evaluating at polynomial at
-          // x, f(x)
-          // and subtracting y.
+          // x = 0, f(x) and subtracting y = 0.
           double cte = polyeval(coeffs, 0);
-          // cout << "cte: " << cte << endl;
           // Due to the sign starting at 0, the orientation error is -f'(x).
-          // derivative of coeffs[0] + coeffs[1] * x -> coeffs[1]
+          // derivative of
           // coeffs[0] + coeffs[1] * x + coeffs[2] * x^2 + coeffs[3] * x^3 ->
-          // coeffs[1] is the derivative
-          double epsi = 0 - atan(coeffs[1]);
-          // cout << "epsi: " << epsi << endl;
+          // coeffs[1] evaluated at x = 0
+          double epsi = -atan(coeffs[1]);
 
+          // Latency
+          // The purpose is to mimic real driving conditions where
+          // the car does actuate the commands instantly.
           double latency = 0.1;
+          // we need to account for velocity unit of measure conversion:
+          // miles per hour to metre per second
+          latency *= 0.44704;
 
           const double Lf = 2.67;
-
-          // updated state variabales after latency is included
+          // updated state variables when latency is included
           px = v * latency;
           py = 0;
-          psi = -v * steering_angle * latency / Lf;
+          psi = -v * steering * latency / Lf;
           epsi += psi;
-          v += throttle * latency;
           cte += v * latency * sin(epsi);
+          // throttle is used as an approximation of the acceleration
+          v += throttle * latency;
 
           Eigen::VectorXd state(6);
           // adding latency to the state vector convert
@@ -164,32 +164,16 @@ int main() {
           // into
           state << px, py, psi, v, cte, epsi;
 
+          // Calculate optimal steering angle and throttle using MPC
           auto vars = mpc.Solve(state, coeffs);
 
           cout << "Vars: " << vars[0] << " " << vars[1] << endl;
 
-          /*
-           * TODO: Calculate steering angle and throttle using MPC.
-           *
-           * Both are in between [-1, 1].
-           *
-           */
-          // latency
-          // https://discussions.udacity.com/t/how-to-incorporate-latency-into-the-model/257391/78
-          // https://discussions.udacity.com/t/how-to-incorporate-l2atency-into-the-model/257391/63?u=acherep
-          // https://www.youtube.com/watch?v=bOQuhpz3YfU&index=5&t=1726s&list=PLAwxTw4SYaPnfR7TzRZN-uxlxGbqxhtm2
-
-          // for further optimization
-          // double steer_value = j[1]["steering_angle"];
-          // double throttle_value = j[1]["throttle"];
           double steer_value = -vars[0] / deg2rad(25);
           double throttle_value = vars[1];
 
-          // double steer_value = 0.;
-          // double throttle_value = 0.1;
-
           json msgJson;
-          // NOTE: Remember to divide by deg2rad(25) before you send the
+          // We divide by deg2rad(25) before sending the
           // steering value back. Otherwise the values will be in between
           // [-deg2rad(25), deg2rad(25] instead of [-1, 1].
           msgJson["steering_angle"] = steer_value;
@@ -198,6 +182,12 @@ int main() {
           // Display the MPC predicted trajectory
           vector<double> mpc_x_vals;
           vector<double> mpc_y_vals;
+          size_t t = 2;
+          while (t < vars.size()) {
+            mpc_x_vals.push_back(vars[t]);
+            mpc_y_vals.push_back(vars[t + 1]);
+            t += 2;
+          }
           //.. add (x,y) points to list here, points are in reference to the
           // vehicle's coordinate system
           // the points in the simulator are connected by a Green line
@@ -220,15 +210,6 @@ int main() {
 
           auto msg = "42[\"steer\"," + msgJson.dump() + "]";
           // std::cout << msg << std::endl;
-          // Latency
-          // The purpose is to mimic real driving conditions where
-          // the car does actuate the commands instantly.
-          //
-          // Feel free to play around with this value but should be to drive
-          // around the track with 100ms latency.
-          //
-          // NOTE: REMEMBER TO SET THIS TO 100 MILLISECONDS BEFORE
-          // SUBMITTING.
           this_thread::sleep_for(chrono::milliseconds(100));
           ws.send(msg.data(), msg.length(), uWS::OpCode::TEXT);
         }
