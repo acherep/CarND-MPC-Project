@@ -41,8 +41,7 @@ double polyeval(Eigen::VectorXd coeffs, double x) {
   return result;
 }
 
-// Fit a polynomial.
-// Adapted from
+// Fit a polynomial. Adapted from
 // https://github.com/JuliaMath/Polynomials.jl/blob/master/src/Polynomials.jl#L676-L716
 Eigen::VectorXd polyfit(Eigen::VectorXd xvals, Eigen::VectorXd yvals,
                         int order) {
@@ -68,7 +67,6 @@ Eigen::VectorXd polyfit(Eigen::VectorXd xvals, Eigen::VectorXd yvals,
 int main() {
   uWS::Hub h;
 
-  // MPC is initialized here!
   MPC mpc;
 
   h.onMessage([&mpc](uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length,
@@ -89,7 +87,7 @@ int main() {
           // `ptsx` (Array<float>) - The global x positions of the waypoints.
           // `ptsy` (Array<float>) - The global y positions of the waypoints.
           // This corresponds to the z coordinate in Unity since
-          //  y is the up-down direction.
+          // y is the up-down direction.
           vector<double> ptsx = j[1]["ptsx"];
           vector<double> ptsy = j[1]["ptsy"];
 
@@ -99,12 +97,12 @@ int main() {
           double py = j[1]["y"];
 
           // `psi` (float) - The orientation of the vehicle
-          //  in radians converted from the Unity format to the standard
-          //  format expected in most mathemetical functions (more details
-          //  below).
-          //  `psi_unity` (float) - The orientation of the vehicle in
-          //  radians. This is an orientation commonly used in navigation
-          //  (https://en.wikipedia.org/wiki/Polar_coordinate_system#Position_and_navigation).
+          // in radians converted from the Unity format to the standard
+          // format expected in most mathemetical functions (more details
+          // below).
+          // `psi_unity` (float) - The orientation of the vehicle in
+          // radians. This is an orientation commonly used in navigation
+          // (https://en.wikipedia.org/wiki/Polar_coordinate_system#Position_and_navigation).
           double psi = j[1]["psi"];
 
           // `speed` (float) - The current velocity in mph.
@@ -112,12 +110,12 @@ int main() {
 
           // `steering_angle` (float) - The current steering angle in radians.
           double steering = j[1]["steering_angle"];
-          //  `throttle` (float) - The current throttle value [-1, 1].
+          // `throttle` (float) - The current throttle value [-1, 1].
           double throttle = j[1]["throttle"];
 
           // positions in the vehicle space
-          //  i.e. where the vehicle is located at the origin (0, 0)
-          //  and the orientation is 0/360 degrees
+          // i.e. where the vehicle is located at the origin (0, 0)
+          // and the orientation is 0/360 degrees
           Eigen::VectorXd car_ptsx = Eigen::VectorXd::Zero(ptsx.size());
           Eigen::VectorXd car_ptsy = Eigen::VectorXd::Zero(ptsy.size());
 
@@ -188,7 +186,7 @@ int main() {
             mpc_y_vals.push_back(vars[t + 1]);
             t += 2;
           }
-          //.. add (x,y) points to list here, points are in reference to the
+          // ... add (x,y) points to list here, points are in reference to the
           // vehicle's coordinate system
           // the points in the simulator are connected by a Green line
           msgJson["mpc_x"] = mpc_x_vals;
@@ -201,7 +199,7 @@ int main() {
             next_x_vals.push_back(car_ptsx[i]);
             next_y_vals.push_back(car_ptsy[i]);
           }
-          //.. add (x,y) points to list here, points are in reference to the
+          // ... add (x,y) points to list here, points are in reference to the
           // vehicle's coordinate system
           // the points in the simulator are connected by a Yellow line
 
@@ -221,15 +219,12 @@ int main() {
     }
   });
 
-  // We don't need this since we're not using HTTP but if it's removed the
-  // program doesn't compile :-(
   h.onHttpRequest([](uWS::HttpResponse *res, uWS::HttpRequest req, char *data,
                      size_t, size_t) {
     const std::string s = "<h1>Hello world!</h1>";
     if (req.getUrl().valueLength == 1) {
       res->end(s.data(), s.length());
     } else {
-      // i guess this should be done more gracefully?
       res->end(nullptr, 0);
     }
   });
