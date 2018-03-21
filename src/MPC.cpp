@@ -25,7 +25,7 @@ const double Lf = 2.67;
 
 // Both the reference cross track and orientation errors are 0.
 // The reference velocity is set to 100 mph.
-double ref_v = 100;
+double ref_v = 80;
 double ref_cte = 0;
 double ref_epsi = 0;
 
@@ -60,8 +60,8 @@ class FG_eval {
 
     // The part of the cost based on the reference state.
     for (size_t t = 0; t < N; t++) {
-      fg[0] += 1000 * CppAD::pow(vars[cte_start + t] - ref_cte, 2);
-      fg[0] += 500 * CppAD::pow(vars[epsi_start + t] - ref_epsi, 2);
+      fg[0] += 500 * CppAD::pow(vars[cte_start + t] - ref_cte, 2);
+      fg[0] += 400 * CppAD::pow(vars[epsi_start + t] - ref_epsi, 2);
       fg[0] += CppAD::pow(vars[v_start + t] - ref_v, 2);
     }
 
@@ -69,13 +69,13 @@ class FG_eval {
     for (size_t t = 0; t < N - 1; t++) {
       fg[0] += CppAD::pow(vars[delta_start + t], 2);
       fg[0] += 2 * CppAD::pow(vars[a_start + t], 2);
-      fg[0] += 200 * CppAD::pow(vars[delta_start + t] * vars[v_start + t], 2);
+      fg[0] += 175 * CppAD::pow(vars[delta_start + t] * vars[v_start + t], 2);
     }
 
     // Minimize the value gap between sequential actuations.
     for (size_t t = 0; t < N - 2; t++) {
-      fg[0] +=
-          10 * CppAD::pow(vars[delta_start + t + 1] - vars[delta_start + t], 2);
+      fg[0] += 400 *
+               CppAD::pow(vars[delta_start + t + 1] - vars[delta_start + t], 2);
       fg[0] += CppAD::pow(vars[a_start + t + 1] - vars[a_start + t], 2);
     }
 
@@ -247,7 +247,7 @@ vector<double> MPC::Solve(Eigen::VectorXd state, Eigen::VectorXd coeffs) {
   // if you uncomment both the computation time should go up in orders of
   // magnitude.
   options += "Sparse  true        forward\n";
-  options += "Sparse  true        reverse\n";
+  // options += "Sparse  true        reverse\n";
   // Currently the solver has a maximum time limit of 0.5 seconds.
   options += "Numeric max_cpu_time          0.5\n";
 
