@@ -51,8 +51,7 @@ class FG_eval {
   // `fg` is a vector containing the cost and constraints.
   // `vars` is a vector containing the variable values (state & actuators).
   void operator()(ADvector& fg, const ADvector& vars) {
-    // values (state & actuators) NOTE: You'll probabl1y go back and forth
-    // between this function and the Solver function below.
+    // values (state & actuators)
 
     // The cost is stored is the first element of `fg`.
     // Any additions to the cost should be added to `fg[0]`.
@@ -120,7 +119,7 @@ class FG_eval {
       AD<double> psides0 = CppAD::atan(coeffs[1] + 2 * coeffs[2] * x0 +
                                        3 * coeffs[3] * pow(x0, 2));
 
-      // Here's `x` to get you started.
+      // Here's `x` to get started.
       // The idea here is to constraint this value to be 0.
       //
       // Recall the equations for the model:
